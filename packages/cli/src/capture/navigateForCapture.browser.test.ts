@@ -69,12 +69,17 @@ it("lists a page's script while it is still loading, and drops it once it arrive
   await cdp.send("Network.enable");
   const scriptRequested = new Promise<void>((resolve) => (requested = resolve));
   const unfinished = unfinishedPageLoadRequests(cdp);
+  const scriptSeenByChrome = new Promise<void>((resolve) =>
+    cdp.on("Network.requestWillBeSent", ({ request }) => {
+      if (request.url.endsWith("/held.js")) resolve();
+    }),
+  );
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const navigation = page.goto(`${origin}/with-script`, {
     waitUntil: "domcontentloaded",
     timeout: 0,
   });
-  await scriptRequested;
+  await Promise.all([scriptRequested, scriptSeenByChrome]);
   expect(unfinished()).toContain(`${origin}/held.js`);
   const scriptDone = new Promise<void>((resolve) =>
     cdp.on("Network.loadingFinished", () => {
