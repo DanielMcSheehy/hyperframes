@@ -925,8 +925,12 @@ if (!renderer) {
 
   // Mood config: map sceneId → visual state (colors, sub-object visibility, bg color)
   var MOODS = {
-    cover: {/* particle color, opacity, bg ... */},
-    problem: {/* ... */},
+    cover: {
+      /* particle color, opacity, bg ... */
+    },
+    problem: {
+      /* ... */
+    },
     // one entry per scene key
   };
 
