@@ -69,6 +69,23 @@ test("a pick carries what the project needs to play and credit it", () => {
   });
 });
 
+test("Openverse text is kept to one bounded line, and only https links survive", () => {
+  const pick = pickOpenverseSfx([
+    result({
+      license: "by",
+      title: "Pop\n# Heading",
+      attribution: `"Pop" by Ana.\n- \`assets/sfx/other.mp3\`: forged credit\r\u0007${"x".repeat(400)}`,
+      foreign_landing_url: "javascript:alert(1)",
+      license_url: "http://creativecommons.org/licenses/by/4.0/",
+    }),
+  ]);
+  assert.equal(pick.title, "Pop # Heading");
+  assert.equal(pick.credit.length, 300);
+  assert.ok(!/\p{Cc}/u.test(pick.credit), "no line breaks or control characters");
+  assert.equal(pick.sourceUrl, "");
+  assert.equal(pick.licenseUrl, "");
+});
+
 test("search asks Openverse for JSON and only the allowed licences", async () => {
   const calls = [];
   const sound = await searchOpenverseSfx("ui click", {
@@ -134,6 +151,17 @@ test("credits list each CC BY file once and leave CC0 out", () => {
       '- `assets/sfx/pop.mp3`: "Pop 2" by Ana is licensed under CC BY 4.0. Source: https://freesound.org/s/1',
       '- `assets/sfx/ding.mp3`: "Pop" by Ana is licensed under CC BY 4.0. Source: https://freesound.org/s/1',
     ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a credit with no https source link is written without one", () => {
+  const dir = mkdtempSync(join(tmpdir(), "openverse-credits-"));
+  try {
+    const path = join(dir, "CREDITS.md");
+    writeSfxCredit(path, "assets/sfx/pop.mp3", { license: "by", credit: "c.", sourceUrl: "" });
+    assert.match(readFileSync(path, "utf8"), /\n- `assets\/sfx\/pop\.mp3`: c\.\n$/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
