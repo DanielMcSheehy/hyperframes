@@ -41,7 +41,6 @@ import { getHdrEncoderColorParams } from "../utils/hdr.js";
 import { withEvenDimensionPad } from "../utils/evenDimensions.js";
 import {
   SDR_CAPTURE_TO_BT709_FILTER,
-  SDR_RGB_TO_BT709_FILTER,
   SDR_RGB_TO_TAGGED_BT709_FILTER,
 } from "../utils/sdrCaptureColor.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
@@ -427,7 +426,7 @@ export function buildStreamingArgs(
     // Raw HDR input (from WebGPU pipeline) is already PQ-encoded, so only SDR gets a
     // conversion: raw sRGB or Chrome's BT.601 JPEG screenshots to BT.709 limited range.
     const sdrFilter = options.rawInputFormat
-      ? SDR_RGB_TO_BT709_FILTER
+      ? SDR_RGB_TO_TAGGED_BT709_FILTER
       : SDR_CAPTURE_TO_BT709_FILTER;
     if (options.rawInputFormat && options.hdr) {
       // No filter needed — PQ data goes straight to encoder

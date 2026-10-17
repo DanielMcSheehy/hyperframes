@@ -1229,6 +1229,56 @@ describe("createFrameReorderBuffer abort (interleaved parallel drain)", () => {
 });
 
 describe.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
+  "buildStreamingArgs SDR frame tags",
+  () => {
+    // VideoToolbox, like a libx264 given no colour options, writes only the colour its frames carry.
+    it.each([
+      ["captured frames", {}],
+      ["raw RGB frames", { rawInputFormat: "rgb48le" as const }],
+    ])("tags BT.709 on %s, so an encoder that reads only them tags the stream", (_, extra) => {
+      const dir = mkdtempSync(join(tmpdir(), "se-sdr-tags-"));
+      try {
+        const out = join(dir, "out.mp4");
+        const args = buildStreamingArgs({ ...baseSdr, width: 64, height: 16, ...extra }, out);
+        const vf = args[args.indexOf("-vf") + 1]!;
+        const encode = spawnSync("ffmpeg", [
+          "-v",
+          "error",
+          "-f",
+          "lavfi",
+          "-i",
+          "color=c=0x808080:s=64x16:d=0.1",
+          "-vf",
+          vf,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          out,
+        ]);
+        expect(encode.status).toBe(0);
+        const tags = spawnSync("ffprobe", [
+          "-v",
+          "error",
+          "-select_streams",
+          "v:0",
+          "-show_entries",
+          "stream=color_space,color_transfer,color_primaries",
+          "-of",
+          "csv=p=0",
+          out,
+        ])
+          .stdout.toString()
+          .trim();
+        expect(tags).toBe("bt709,bt709,bt709");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  },
+);
+
+describe.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
   "buildStreamingArgs raw SDR colour",
   () => {
     // ffmpeg 7 and older convert raw RGB with the BT.601 matrix unless told otherwise.
