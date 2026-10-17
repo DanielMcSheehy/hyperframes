@@ -467,10 +467,6 @@ export function computeSnapshotTimes(
   return { times: times.map(round), appendedTail: false };
 }
 
-/**
- * Render key frames from a composition as PNG screenshots.
- * The agent can Read these to verify its output visually.
- */
 /** Two clips sharing an author id must stay two frames, keyed as the render path keys them. */
 function withMediaRenderIds(html: string): string {
   const { document } = parseHTML(html);
@@ -483,6 +479,10 @@ async function installMediaRenderIdBridge(page: Page): Promise<void> {
   await engine?.installMediaRenderIdBridge(page);
 }
 
+/**
+ * Render key frames from a composition as PNG screenshots.
+ * The agent can Read these to verify its output visually.
+ */
 async function captureSnapshots(
   projectDir: string,
   opts: {
