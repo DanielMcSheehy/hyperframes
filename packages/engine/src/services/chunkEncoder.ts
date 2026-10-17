@@ -102,6 +102,7 @@ export interface MuxVideoWithAudioOptions extends Partial<
    * depend on the file extension alone.
    */
   audioCodec?: "aac";
+  audioBitrate?: string;
   /** Replaces `-i <videoPath>` (which is then unused), e.g. with a concat-demuxer input. */
   videoInputArgs?: readonly string[];
   /**
@@ -112,6 +113,10 @@ export interface MuxVideoWithAudioOptions extends Partial<
    * source compatibility; it will be removed in a future major.
    */
   preserveAudioPrimingEditList?: boolean;
+}
+
+function audioBitrateArg(codec: "aac" | "opus", override: string | undefined): string {
+  return override ?? (codec === "opus" ? "128k" : "192k");
 }
 
 async function shouldCopyAacSidecar(
@@ -789,12 +794,12 @@ export async function muxVideoWithAudio(
   const args = [...(config?.videoInputArgs ?? ["-i", videoPath]), "-i", audioPath, "-c:v", "copy"];
 
   if (isWebm) {
-    args.push("-c:a", "libopus", "-b:a", "128k");
+    args.push("-c:a", "libopus", "-b:a", audioBitrateArg("opus", config?.audioBitrate));
   } else if (isMov) {
     if (shouldCopyAudio) {
       args.push("-c:a", "copy");
     } else {
-      args.push("-c:a", "aac", "-b:a", "192k");
+      args.push("-c:a", "aac", "-b:a", audioBitrateArg("aac", config?.audioBitrate));
     }
   } else {
     // processCompositionAudio (audioMixer.ts) performs the AAC encode and
@@ -805,7 +810,14 @@ export async function muxVideoWithAudio(
     if (shouldCopyAudio) {
       args.push("-c:a", "copy", "-movflags", "+faststart");
     } else {
-      args.push("-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart");
+      args.push(
+        "-c:a",
+        "aac",
+        "-b:a",
+        audioBitrateArg("aac", config?.audioBitrate),
+        "-movflags",
+        "+faststart",
+      );
     }
   }
   // No `-avoid_negative_ts` here, in any mode. ffmpeg's default is `auto`,

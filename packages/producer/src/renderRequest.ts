@@ -55,6 +55,7 @@ export interface RenderRequestOptions {
   entryFile?: string;
   crf?: number;
   videoBitrate?: string;
+  audioBitrate?: string;
   videoFrameFormat?: VideoFrameFormat;
   hdrMode?: RenderConfig["hdrMode"];
   variables?: Record<string, unknown>;
@@ -175,7 +176,7 @@ function assertRequestOptionScalars(options: Record<string, unknown>): void {
   for (const field of ["useGpu", "debug", "outputResolutionAspectAgnostic"] as const) {
     assertOptionalBoolean(options, field);
   }
-  for (const field of ["entryFile", "videoBitrate"] as const) {
+  for (const field of ["entryFile", "videoBitrate", "audioBitrate"] as const) {
     assertOptionalString(options, field);
   }
   assertOptionalEnum(options, "strictness", ["strict", "best-effort"]);

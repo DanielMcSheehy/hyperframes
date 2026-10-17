@@ -294,6 +294,15 @@ describe("buildDockerRunArgs", () => {
     expect(args).not.toContain("--crf");
   });
 
+  it("forwards --audio-bitrate to the container when set", () => {
+    const args = buildDockerRunArgs({
+      ...FIXED_INPUT,
+      options: { ...BASE, audioBitrate: "128k" },
+    });
+    expect(args).toContain("--audio-bitrate");
+    expect(args).toContain("128k");
+  });
+
   it("forwards --video-frame-format to the container when set to png", () => {
     const args = buildDockerRunArgs({
       ...FIXED_INPUT,

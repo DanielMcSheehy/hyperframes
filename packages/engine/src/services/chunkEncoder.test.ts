@@ -656,7 +656,7 @@ describe("muxVideoWithAudio audio codec handling", () => {
       "/tmp/audio-sidecar",
       "/tmp/output.mp4",
       undefined,
-      { audioCodec: "aac" },
+      { audioCodec: "aac", audioBitrate: "128k" },
       { num: 30, den: 1 },
     );
 
@@ -731,7 +731,7 @@ describe("muxVideoWithAudio audio codec handling", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.args).toContain("-c:a");
     expect(calls[0]!.args[calls[0]!.args.indexOf("-c:a") + 1]).toBe("aac");
-    expect(calls[0]!.args).toContain("-b:a");
+    expect(calls[0]!.args[calls[0]!.args.indexOf("-b:a") + 1]).toBe("192k");
 
     emitClose(calls[0]!.proc, 0);
     await expect(muxPromise).resolves.toMatchObject({ success: true });
@@ -753,12 +753,25 @@ describe("muxVideoWithAudio audio codec handling", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.args).toContain("-c:a");
     expect(calls[0]!.args[calls[0]!.args.indexOf("-c:a") + 1]).toBe("aac");
-    expect(calls[0]!.args).toContain("-b:a");
+    expect(calls[0]!.args[calls[0]!.args.indexOf("-b:a") + 1]).toBe("192k");
     expect(calls[0]!.args).toContain("+faststart");
     expect(calls[0]!.args).not.toContain("-avoid_negative_ts");
 
     emitClose(calls[0]!.proc, 0);
     await expect(muxPromise).resolves.toMatchObject({ success: true });
+
+    const overridden = muxVideoWithAudio(
+      "/tmp/video-only.mp4",
+      "/tmp/audio.wav",
+      "/tmp/output-96k.mp4",
+      undefined,
+      { audioBitrate: "96k" },
+    );
+    await flushMuxCodecResolution();
+    expect(calls[1]!.args[calls[1]!.args.indexOf("-c:a") + 1]).toBe("aac");
+    expect(calls[1]!.args[calls[1]!.args.indexOf("-b:a") + 1]).toBe("96k");
+    emitClose(calls[1]!.proc, 0);
+    await overridden;
   });
 
   it("copies HyperFrames AAC sidecars into MOV containers without MP4 faststart flags", async () => {
@@ -827,10 +840,23 @@ describe("muxVideoWithAudio audio codec handling", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.args).toContain("-c:a");
     expect(calls[0]!.args[calls[0]!.args.indexOf("-c:a") + 1]).toBe("libopus");
+    expect(calls[0]!.args[calls[0]!.args.indexOf("-b:a") + 1]).toBe("128k");
     expect(calls[0]!.args).not.toContain("+faststart");
 
     emitClose(calls[0]!.proc, 0);
     await expect(muxPromise).resolves.toMatchObject({ success: true });
+
+    const overridden = muxVideoWithAudio(
+      "/tmp/video-only.webm",
+      "/tmp/audio.aac",
+      "/tmp/output-256k.webm",
+      undefined,
+      { audioBitrate: "256k" },
+    );
+    expect(calls[1]!.args[calls[1]!.args.indexOf("-c:a") + 1]).toBe("libopus");
+    expect(calls[1]!.args[calls[1]!.args.indexOf("-b:a") + 1]).toBe("256k");
+    emitClose(calls[1]!.proc, 0);
+    await overridden;
   });
 });
 

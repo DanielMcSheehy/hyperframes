@@ -39,6 +39,7 @@ export interface AudioStageInput {
   ffmpegProcessTimeout: number;
   /** Master gain forwarded to the audio mixer. */
   audioGain: number;
+  audioBitrate?: string;
   /** Read-only view of `composition.audios`. */
   audios: CompositionMetadata["audios"];
   masterFxChain?: string;
@@ -80,6 +81,7 @@ export async function runAudioStage(input: AudioStageInput): Promise<AudioStageR
     duration,
     ffmpegProcessTimeout,
     audioGain,
+    audioBitrate,
     audios,
     masterFxChain,
     abortSignal,
@@ -109,7 +111,7 @@ export async function runAudioStage(input: AudioStageInput): Promise<AudioStageR
         audioOutputPath,
         duration,
         abortSignal,
-        { ffmpegProcessTimeout, audioGain, masterFxChain },
+        { ffmpegProcessTimeout, audioGain, masterFxChain, audioBitrate },
         compiledDir,
       );
     } catch (err) {

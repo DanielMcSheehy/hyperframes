@@ -92,6 +92,25 @@ describe("runAssembleStage audio duration parity", () => {
     );
   });
 
+  it("forwards audioBitrate into duration normalization and mux", async () => {
+    const input = makeInput();
+    input.job.config.audioBitrate = "128k";
+    await runAssembleStage(input);
+
+    expect(padOrTrimAudioMock).toHaveBeenCalledWith(
+      expect.objectContaining({ audioBitrate: "128k" }),
+    );
+    expect(muxVideoWithAudioMock).toHaveBeenCalledWith(
+      "/tmp/video-only.mp4",
+      "/tmp/audio.duration-normalized.m4a",
+      "/tmp/output.mp4",
+      undefined,
+      { audioCodec: "aac", ffmpegProcessTimeout: 1_234_000, audioBitrate: "128k" },
+      { num: 30, den: 1 },
+      expect.any(Function),
+    );
+  });
+
   it("gives a silent mp4's faststart the render's configured ffmpeg timeout", async () => {
     await runAssembleStage(makeInput({ hasAudio: false }));
 

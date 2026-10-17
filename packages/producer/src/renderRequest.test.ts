@@ -55,6 +55,22 @@ describe("RenderRequest", () => {
     expect(parseRenderRequest(serializeRenderRequest(value))).toEqual(value);
   });
 
+  it("keeps audioBitrate on the local render config", () => {
+    const value = createRenderRequest({
+      projectDir: "/project",
+      outputPath: "/output/video.mp4",
+      engineConfig: DEFAULT_CONFIG,
+      options: {
+        fps: { num: 30, den: 1 },
+        quality: "standard",
+        format: "mp4",
+        audioBitrate: "128k",
+      },
+    });
+    expect(renderConfigFromRequest(value).audioBitrate).toBe("128k");
+    expect(parseRenderRequest(serializeRenderRequest(value)).options.audioBitrate).toBe("128k");
+  });
+
   it("adapts the same request to local and distributed execution", () => {
     const value = request();
     const local = renderConfigFromRequest(value);

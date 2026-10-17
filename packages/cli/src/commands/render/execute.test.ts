@@ -40,6 +40,16 @@ describe("renderOptionsFromPlan", () => {
     expect(on.browserPath).toBe("/usr/bin/chrome");
     expect(on.variables).toEqual({ title: "x" });
   });
+
+  it("carries --audio-bitrate into single and batch render options", () => {
+    const plan = createRenderPlan({ dir: projectDir, "audio-bitrate": "128k" });
+    expect(renderOptionsFromPlan(plan, undefined, undefined).audioBitrate).toBe("128k");
+    expect(batchRowRenderOptions(plan, undefined).audioBitrate).toBe("128k");
+    expect(
+      renderOptionsFromPlan(createRenderPlan({ dir: projectDir }), undefined, undefined)
+        .audioBitrate,
+    ).toBeUndefined();
+  });
 });
 
 describe("the desktop-app line after a render", () => {

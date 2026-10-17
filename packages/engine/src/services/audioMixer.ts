@@ -755,12 +755,20 @@ async function generateSilence(
   };
 }
 
+type AudioEncodeConfig = Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "audioGain">> & {
+  audioBitrate?: string;
+};
+
+function aacBitrateArg(config: { audioBitrate?: string } | undefined): string {
+  return config?.audioBitrate ?? "192k";
+}
+
 async function mixAudioTracks(
   tracks: AudioTrack[],
   outputPath: string,
   totalDuration: number,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "audioGain">>,
+  config?: AudioEncodeConfig,
   floatWav = false,
 ): Promise<MixResult> {
   const ffmpegProcessTimeout = config?.ffmpegProcessTimeout ?? DEFAULT_CONFIG.ffmpegProcessTimeout;
@@ -827,7 +835,9 @@ async function mixAudioTracks(
       scriptPath,
       "-map",
       "[out]",
-      ...(floatWav ? ["-acodec", "pcm_f32le", "-ar", "48000"] : ["-acodec", "aac", "-b:a", "192k"]),
+      ...(floatWav
+        ? ["-acodec", "pcm_f32le", "-ar", "48000"]
+        : ["-acodec", "aac", "-b:a", aacBitrateArg(config)]),
       "-t",
       String(totalDuration),
       "-y",
@@ -1069,7 +1079,7 @@ async function mixThroughMasterBus(
   workDir: string,
   totalDuration: number,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "audioGain">>,
+  config?: AudioEncodeConfig,
 ): Promise<MixResult> {
   const sumPath = join(workDir, "master-sum.wav");
   const sum = await mixAudioTracks(tracks, sumPath, totalDuration, signal, config, true);
@@ -1088,7 +1098,7 @@ async function mixThroughMasterBus(
       "-acodec",
       "aac",
       "-b:a",
-      "192k",
+      aacBitrateArg(config),
       "-y",
       outputPath,
     ],
@@ -1115,7 +1125,7 @@ export async function processCompositionAudio(
   outputPath: string,
   totalDuration: number,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "audioGain">> & {
+  config?: AudioEncodeConfig & {
     /** Serialised master bus chain, from `parseMasterFxChain`. */
     masterFxChain?: string;
   },

@@ -137,6 +137,27 @@ describe("runAudioStage", () => {
     );
   });
 
+  it("forwards audioBitrate to the mixer", async () => {
+    processCompositionAudioMock.mockResolvedValue({
+      success: true,
+      outputPath: "audio.m4a",
+      durationMs: 1,
+      tracksProcessed: 1,
+    });
+
+    await runAudioStage(makeInput({ audioBitrate: "128k" }));
+    expect(processCompositionAudioMock).toHaveBeenCalledWith(
+      audios,
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      5,
+      undefined,
+      { ffmpegProcessTimeout: 3_600_000, audioGain: 1, audioBitrate: "128k" },
+      expect.any(String),
+    );
+  });
+
   it("falls back to a generic message when the mixer fails without an error string", async () => {
     processCompositionAudioMock.mockResolvedValue({
       success: false,

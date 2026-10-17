@@ -65,6 +65,15 @@ describe("buildPadTrimAudioArgs", () => {
     expect(args.at(-1)).toBe("/tmp/out.m4a");
   });
 
+  it("uses the requested AAC bitrate for pad and trim", () => {
+    const pad = buildPadTrimAudioPlan("/tmp/in.aac", "/tmp/out.aac", 4.0, 5.0, "128k");
+    const trim = buildPadTrimAudioArgs("/tmp/in.aac", "/tmp/out.m4a", 15.018667, 15.0, "128k");
+    expect(pad.steps[0]!.args[pad.steps[0]!.args.indexOf("-b:a") + 1]).toBe("128k");
+    expect(trim.args[trim.args.indexOf("-b:a") + 1]).toBe("128k");
+    expect(pad.operation).toBe("pad");
+    expect(trim.operation).toBe("trim");
+  });
+
   it("emits a plain copy when source duration matches target within ~1ms", () => {
     const { args, operation } = buildPadTrimAudioArgs("/tmp/in.aac", "/tmp/out.aac", 5.0, 5.0);
     expect(operation).toBe("copy");
@@ -332,6 +341,7 @@ describe("padOrTrimAudioToVideoFrameCount", () => {
     const correctionArgs = calls[1]!;
     expect(correctionArgs[correctionArgs.indexOf("-af") + 1]).toBe("volume=-3.000dB");
     expect(correctionArgs[correctionArgs.indexOf("-t") + 1]).toBe("3.000000");
+    expect(correctionArgs[correctionArgs.indexOf("-b:a") + 1]).toBe("192k");
   });
 
   it("keeps the end of a long correction failure, where ffmpeg says what went wrong", async () => {

@@ -373,6 +373,77 @@ describe("processCompositionAudio", () => {
     expect(filter).not.toContain("weights=");
   });
 
+  it.each([
+    ["the default AAC bitrate", undefined, "192k"],
+    ["an overridden AAC bitrate", "128k", "128k"],
+  ] as const)("encodes the mix at %s", async (_label, audioBitrate, expected) => {
+    const baseDir = mkdtempSync(join(tmpdir(), "hf-audio-base-"));
+    const workDir = mkdtempSync(join(tmpdir(), "hf-audio-work-"));
+    tempDirs.push(baseDir, workDir);
+    writeFileSync(join(baseDir, "voice.wav"), "stub");
+
+    const result = await processCompositionAudio(
+      [
+        {
+          id: "voice",
+          src: "voice.wav",
+          start: 0,
+          end: 2,
+          mediaStart: 0,
+          layer: 0,
+          volume: 1,
+          type: "audio",
+        },
+      ],
+      baseDir,
+      workDir,
+      join(baseDir, "out.m4a"),
+      2,
+      undefined,
+      audioBitrate ? { audioBitrate } : undefined,
+    );
+
+    expect(result.success).toBe(true);
+    const encode = runFfmpegMock.mock.calls
+      .map((call) => call[0])
+      .find((args) => args.includes("-b:a"));
+    expect(encode?.[encode.indexOf("-b:a") + 1]).toBe(expected);
+  });
+
+  it("encodes the master-bus AAC pass at the overridden bitrate", async () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "hf-audio-base-"));
+    const workDir = mkdtempSync(join(tmpdir(), "hf-audio-work-"));
+    tempDirs.push(baseDir, workDir);
+    writeFileSync(join(baseDir, "voice.wav"), "stub");
+
+    const result = await processCompositionAudio(
+      [
+        {
+          id: "voice",
+          src: "voice.wav",
+          start: 0,
+          end: 2,
+          mediaStart: 0,
+          layer: 0,
+          volume: 1,
+          type: "audio",
+        },
+      ],
+      baseDir,
+      workDir,
+      join(baseDir, "out.m4a"),
+      2,
+      undefined,
+      { masterFxChain: gainChain, audioBitrate: "256k" },
+    );
+
+    expect(result.success).toBe(true);
+    const encode = runFfmpegMock.mock.calls
+      .map((call) => call[0])
+      .find((args) => args.includes("aac"));
+    expect(encode?.[encode.indexOf("-b:a") + 1]).toBe("256k");
+  });
+
   it("trims the consumed source span and applies pitch-preserving tempo at 2x", async () => {
     const baseDir = mkdtempSync(join(tmpdir(), "hf-audio-base-"));
     const workDir = mkdtempSync(join(tmpdir(), "hf-audio-work-"));

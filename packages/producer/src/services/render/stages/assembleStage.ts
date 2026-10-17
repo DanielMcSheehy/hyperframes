@@ -119,6 +119,7 @@ async function assembleOutput(
       outputPath: normalizedAudioPath,
       signal: abortSignal,
       timeoutMs: ffmpegProcessTimeout,
+      audioBitrate: job.config.audioBitrate,
     });
     assertNotAborted();
     if (!normalizeResult.success) {
@@ -136,6 +137,7 @@ async function assembleOutput(
         {
           audioCodec: "aac",
           ffmpegProcessTimeout,
+          audioBitrate: job.config.audioBitrate,
         },
         job.config.fps,
         onSecondsWritten,
