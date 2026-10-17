@@ -8,7 +8,7 @@
 import { DEFAULT_MAX_SCREENSHOTS } from "./types.js";
 import { CaptureDirRefusedError } from "./captureErrors.js";
 import { normalizeErrorMessage } from "../utils/errorMessage.js";
-import { TargetCloseError, type Page } from "puppeteer-core";
+import { ConnectionClosedError, type Page } from "puppeteer-core";
 import { isDegradableEvaluateTimeoutError } from "./captureTimeout.js";
 import { join } from "node:path";
 import { ensureCaptureDirSync, writeCaptureFileSync } from "./captureFile.js";
@@ -56,9 +56,13 @@ export interface ScreenshotCaptureResult {
 
 /** Notes one shot that failed. A timeout, a closed page or a refused output folder still ends the whole capture. */
 function shotFailure(err: unknown, file: string, scrollY: number | null): ScreenshotFailure {
-  const ends = err instanceof CaptureDirRefusedError || err instanceof TargetCloseError;
-  if (ends || isDegradableEvaluateTimeoutError(err)) throw err;
-  return { file, scrollY, message: normalizeErrorMessage(err) };
+  const message = normalizeErrorMessage(err);
+  // puppeteer-core 25 exports no class for a closed page or session, only these messages.
+  const closed =
+    err instanceof ConnectionClosedError || /\b(target|session) closed\b/i.test(message);
+  if (closed || err instanceof CaptureDirRefusedError || isDegradableEvaluateTimeoutError(err))
+    throw err;
+  return { file, scrollY, message };
 }
 
 /**

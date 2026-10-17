@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TargetCloseError, TimeoutError, type Page } from "puppeteer-core";
+import { TimeoutError, type Page } from "puppeteer-core";
 import {
   captureFullPagePlate,
   captureScrollScreenshots,
@@ -155,7 +155,7 @@ describe("captureScrollScreenshots limits", () => {
 describe("captureScrollScreenshots interruptions", () => {
   it.each([
     [new TimeoutError("protocolTimeout"), "request-timeout"],
-    [new TargetCloseError("Target closed"), "internal-error"],
+    [new Error("target closed"), "internal-error"],
   ])("preserves saved files when the next screenshot fails with %s", async (error, reason) => {
     vi.useFakeTimers();
     const dir = tempDir("hf-scroll-interrupted-");
