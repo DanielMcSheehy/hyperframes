@@ -32,7 +32,7 @@ function streamEnd(path: string): string {
 
 /** Join k decodes from segment k-1's last packet and segment k's first: samples [(cut-1)*1024, cut*1024). */
 function joinCentres(seconds: number, segments: number): number[] {
-  const packets = Math.ceil((seconds * 48_000) / 1024) + 1;
+  const packets = Math.ceil(Math.round(seconds * 48_000) / 1024) + 1;
   return Array.from({ length: segments - 1 }, (_, k) => {
     const cut = Math.round(((k + 1) * packets) / segments);
     return (cut - 1) * 1024 + 512;
@@ -102,6 +102,17 @@ describe.skipIf(!HAS_FFMPEG)("encodeAac", () => {
     // Measured: under 1% more RMS error, and cut peaks at one encoder's own level.
     expect(splitError.rms).toBeLessThan(singleError.rms * 1.02);
     expect(splitError.peakNearCut).toBeLessThan(singleError.peakElsewhere);
+  }, 120_000);
+
+  it("encodes a frame-aligned duration whose sample count is not exact in floating point", async () => {
+    // 147.52 s is exactly 6915 AAC frames, but 147.52 * 48000 lands one ulp above it.
+    const source = join(dir, "aligned.wav");
+    ffmpeg(["-f", "lavfi", "-i", "sine=f=440:d=147.52:r=48000", "-ac", "2", "-y", source]);
+    const single = join(dir, "aligned-single.m4a");
+    const split = join(dir, "aligned-split.m4a");
+    ffmpeg(["-i", source, "-t", "147.52", "-acodec", "aac", "-b:a", "192k", "-y", single]);
+    expect((await encodeAac(source, split, 147.52, { timeout: 120_000 })).success).toBe(true);
+    expect(streamEnd(split)).toBe(streamEnd(single));
   }, 120_000);
 
   it("leaves no click at the joins of a pure tone", async () => {

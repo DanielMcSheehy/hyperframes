@@ -40,7 +40,8 @@ export function splitAdtsFrames(bytes: Buffer): Buffer[] {
  * encoder delay. Segment k encodes from `firstFrame` and keeps its packets [keepFrom, keepTo).
  */
 function planSegments(totalDuration: number, count: number) {
-  const packets = Math.ceil((totalDuration * SAMPLE_RATE) / FRAME_SAMPLES) + 1;
+  // Round to whole samples first: 147.52 * 48000 is 7080960.000000001 in floating point.
+  const packets = Math.ceil(Math.round(totalDuration * SAMPLE_RATE) / FRAME_SAMPLES) + 1;
   const cuts = Array.from({ length: count + 1 }, (_, k) => Math.round((k * packets) / count));
   return cuts.slice(0, -1).map((cut, k) => {
     const next = cuts[k + 1]!;
