@@ -472,7 +472,7 @@ export function computeSnapshotTimes(
  * The agent can Read these to verify its output visually.
  */
 /** Two clips sharing an author id must stay two frames, keyed as the render path keys them. */
-export function withMediaRenderIds(html: string): string {
+function withMediaRenderIds(html: string): string {
   const { document } = parseHTML(html);
   assignMediaRenderIds(document);
   return document.toString();
