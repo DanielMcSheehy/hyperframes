@@ -1907,10 +1907,10 @@ describe.skipIf(!HAS_FFMPEG)("buildEncoderArgs SDR colour", () => {
       const vfAt = args.indexOf("-vf");
       const vf = vfAt === -1 ? [] : ["-vf", args[vfAt + 1]!];
       const source = ["-f", "lavfi", "-i", "color=c=0x808080:s=64x16:d=0.1"];
-      const encode = spawnSync(ffmpeg, ["-v", "error", ...source, ...vf, ...encoder, out]);
+      const encode = spawnSync(ffmpeg, ["-y", "-v", "error", ...source, ...vf, ...encoder, out]);
       expect(encode.status).toBe(0);
       const entries = "stream=color_space,color_transfer,color_primaries";
-      const probe = ["-v", "error", "-show_entries", entries, "-of", "csv=p=0", out];
+      const probe = ["-v", "error", "-show_entries", entries, "-of", "csv=p=0", "--", out];
       return spawnSync(getFfprobeBinary(), probe).stdout.toString().trim();
     } finally {
       rmSync(dir, { recursive: true, force: true });
