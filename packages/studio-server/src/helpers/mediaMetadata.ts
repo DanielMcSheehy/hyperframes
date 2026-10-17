@@ -5,6 +5,7 @@ import {
   parseFirstFrameColour,
   type ToneMapSourceColour,
 } from "@hyperframes/core";
+import { playableAudioTrack } from "@hyperframes/core/audible-video";
 import { findFfBinary } from "@hyperframes/parsers/ff-binaries";
 
 export interface FfprobeRunResult {
@@ -73,6 +74,8 @@ export interface MediaMetadata {
   color: MediaColorMetadata;
   /** Video audio stream, when probed. Absent means the drop path stays muted. */
   hasAudio?: boolean;
+  /** `playableAudioTrack` of a probed video; absent when no audio stream plays. */
+  audioTrack?: number;
   probeError?: string;
 }
 
@@ -246,7 +249,8 @@ export async function probeMediaMetadata(
     });
     const metadata: MediaMetadata = { kind, color: classifyMediaColor(stream) };
     if (kind === "video") {
-      metadata.hasAudio = (parsed.streams ?? []).some((item) => item.codec_type === "audio");
+      metadata.audioTrack = playableAudioTrack(parsed.streams ?? []);
+      metadata.hasAudio = metadata.audioTrack !== undefined;
     }
     return metadata;
   } catch {
