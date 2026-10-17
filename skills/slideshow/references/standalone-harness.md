@@ -875,7 +875,7 @@ Do NOT add a mute button inside the composition. The `#sfx-mute` coral button pa
 </script>
 ```
 
-**Sourcing SFX files:** resolve each one with `npx hyperframes media-use resolve --type sfx --intent "<whoosh | click | transition>" --project .` (Openverse CC0 / CC BY, bundled library offline; CC BY credits land in `.media/audio/sfx/CREDITS.md`), copy the files to a local `sfx/` directory next to `demo.html` and reference them by relative path. Do not fetch SFX at render time — the HyperFrames determinism rule forbids runtime network requests; pre-download and commit them.
+**Sourcing SFX files:** resolve each one with `npx hyperframes media-use resolve --type sfx --intent "<whoosh | click | transition>" --project .` (Openverse CC0 / CC BY, bundled library offline; CC BY credits land in a `CREDITS.md` beside the resolved files), copy the files to a local `sfx/` directory next to `demo.html` and reference them by relative path. Do not fetch SFX at render time — the HyperFrames determinism rule forbids runtime network requests; pre-download and commit them.
 
 ---
 
@@ -925,12 +925,8 @@ if (!renderer) {
 
   // Mood config: map sceneId → visual state (colors, sub-object visibility, bg color)
   var MOODS = {
-    cover: {
-      /* particle color, opacity, bg ... */
-    },
-    problem: {
-      /* ... */
-    },
+    cover: {/* particle color, opacity, bg ... */},
+    problem: {/* ... */},
     // one entry per scene key
   };
 

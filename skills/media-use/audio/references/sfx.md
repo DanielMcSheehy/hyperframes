@@ -9,7 +9,7 @@ There is no `npx hyperframes sfx` command. SFX is never generated — it is retr
 
 ## Licences
 
-Only **CC0** and **CC BY** sounds are used: never NonCommercial, ShareAlike or NoDerivatives. Each CC BY sound is credited in the project's `assets/sfx/CREDITS.md` (title, creator, licence, source link; `.media/audio/sfx/CREDITS.md` for `resolve`) and its `audio_meta.sfx[]` entry carries `license` and `credit`. Tell the person to include those credits wherever the video is published.
+Only **CC0** and **CC BY** sounds are used: never NonCommercial, ShareAlike or NoDerivatives. Each CC BY sound is credited in the project's `assets/sfx/CREDITS.md` (title, creator, licence, source link; for `resolve`, in a `CREDITS.md` beside the sound files it saves) and its `audio_meta.sfx[]` entry carries `license` and `credit`. Tell the person to include those credits wherever the video is published.
 
 ## Cues — request → meta
 
