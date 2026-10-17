@@ -1229,52 +1229,58 @@ describe("createFrameReorderBuffer abort (interleaved parallel drain)", () => {
 });
 
 describe.skipIf(spawnSync("ffmpeg", ["-version"]).status !== 0)(
-  "buildStreamingArgs SDR frame tags",
+  "buildStreamingArgs frame tags",
   () => {
-    // VideoToolbox, like a libx264 given no colour options, writes only the colour its frames carry.
+    // VideoToolbox, like a libx264/libx265 given no colour options, writes only the colour its frames carry.
+    const streamTagsThrough = (args: string[], encoder: string[]): string => {
+      const dir = mkdtempSync(join(tmpdir(), "se-frame-tags-"));
+      try {
+        const out = join(dir, "out.mp4");
+        const vfAt = args.indexOf("-vf");
+        const vf = vfAt === -1 ? [] : ["-vf", args[vfAt + 1]!];
+        const source = ["-f", "lavfi", "-i", "color=c=0x808080:s=64x16:d=0.1"];
+        const encode = spawnSync("ffmpeg", ["-v", "error", ...source, ...vf, ...encoder, out]);
+        expect(encode.status).toBe(0);
+        const entries = "stream=color_space,color_transfer,color_primaries";
+        const probe = ["-v", "error", "-show_entries", entries, "-of", "csv=p=0", out];
+        return spawnSync("ffprobe", probe).stdout.toString().trim();
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const tiny = { width: 64, height: 16 };
+
     it.each([
       ["captured frames", {}],
       ["raw RGB frames", { rawInputFormat: "rgb48le" as const }],
     ])("tags BT.709 on %s, so an encoder that reads only them tags the stream", (_, extra) => {
-      const dir = mkdtempSync(join(tmpdir(), "se-sdr-tags-"));
-      try {
-        const out = join(dir, "out.mp4");
-        const args = buildStreamingArgs({ ...baseSdr, width: 64, height: 16, ...extra }, out);
-        const vf = args[args.indexOf("-vf") + 1]!;
-        const encode = spawnSync("ffmpeg", [
-          "-v",
-          "error",
-          "-f",
-          "lavfi",
-          "-i",
-          "color=c=0x808080:s=64x16:d=0.1",
-          "-vf",
-          vf,
-          "-c:v",
-          "libx264",
-          "-preset",
-          "ultrafast",
-          out,
-        ]);
-        expect(encode.status).toBe(0);
-        const tags = spawnSync("ffprobe", [
-          "-v",
-          "error",
-          "-select_streams",
-          "v:0",
-          "-show_entries",
-          "stream=color_space,color_transfer,color_primaries",
-          "-of",
-          "csv=p=0",
-          out,
-        ])
-          .stdout.toString()
-          .trim();
-        expect(tags).toBe("bt709,bt709,bt709");
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+      const args = buildStreamingArgs({ ...baseSdr, ...tiny, ...extra }, "o.mp4");
+
+      expect(streamTagsThrough(args, ["-c:v", "libx264", "-preset", "ultrafast"])).toBe(
+        "bt709,bt709,bt709",
+      );
     });
+
+    it.each([
+      [baseHdrPq, "smpte2084", null],
+      [baseHdrHlg, "arib-std-b67", null],
+      [baseHdrPq, "smpte2084", "videotoolbox"],
+    ] as const)(
+      "tags raw HDR frames %#, so an encoder that reads only them tags the stream",
+      (base, trc, gpu) => {
+        const args = buildStreamingArgs({ ...base, ...tiny, useGpu: gpu !== null }, "o.mp4", gpu);
+        const x265 = [
+          "-c:v",
+          "libx265",
+          "-pix_fmt",
+          "yuv420p10le",
+          "-x265-params",
+          "log-level=error",
+        ];
+
+        expect(streamTagsThrough(args, x265)).toBe(`bt2020nc,${trc},bt2020`);
+      },
+    );
   },
 );
 
