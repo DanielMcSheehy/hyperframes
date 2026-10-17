@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TimeoutError, type Page } from "puppeteer-core";
+import { TargetCloseError, TimeoutError, type Page } from "puppeteer-core";
 import {
   captureFullPagePlate,
   captureScrollScreenshots,
@@ -155,7 +155,7 @@ describe("captureScrollScreenshots limits", () => {
 describe("captureScrollScreenshots interruptions", () => {
   it.each([
     [new TimeoutError("protocolTimeout"), "request-timeout"],
-    [new Error("target closed"), "internal-error"],
+    [new TargetCloseError("Target closed"), "internal-error"],
   ])("preserves saved files when the next screenshot fails with %s", async (error, reason) => {
     vi.useFakeTimers();
     const dir = tempDir("hf-scroll-interrupted-");
@@ -266,6 +266,56 @@ describe("captureScrollScreenshots interruptions", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("captureScrollScreenshots — a shot Chrome will not take", () => {
+  const refusal = new Error(
+    "Protocol error (Page.captureScreenshot): Unable to capture screenshot",
+  );
+
+  /** 8000px page, 1080px viewport, 4 files: tiles at 0, 3780 and 6920px, then the plate. */
+  async function captureWith(screenshot: (opts?: { fullPage?: boolean }) => Promise<Buffer>) {
+    vi.useFakeTimers();
+    try {
+      const dir = tempDir("hf-scroll-refused-");
+      const { page } = fakePage({}, { screenshot: vi.fn(screenshot) });
+      const capture = captureScrollScreenshots(page, dir, { maxScreenshots: 4 });
+      await vi.runAllTimersAsync();
+      return { ...(await capture), written: readdirSync(join(dir, "screenshots")).sort() };
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it("names the tile it could not take, and still takes the tiles after it and the plate", async () => {
+    let calls = 0;
+    const result = await captureWith(async () => {
+      if (++calls === 2) throw refusal;
+      return pngBuffer(1080);
+    });
+    expect(result.interruption).toBeNull();
+    expect(result.failures).toEqual([
+      { file: "screenshots/scroll-055.png", scrollY: 3780, message: refusal.message },
+    ]);
+    expect(result.files).toEqual([
+      "screenshots/scroll-000.png",
+      "screenshots/scroll-100.png",
+      "screenshots/full-page.png",
+    ]);
+    expect(result.written).toEqual(["full-page.png", "scroll-000.png", "scroll-100.png"]);
+  });
+
+  it("names the plate when only the full-page shot is refused", async () => {
+    const result = await captureWith(async (opts) => {
+      if (opts?.fullPage) throw refusal;
+      return pngBuffer(1080);
+    });
+    expect(result.interruption).toBeNull();
+    expect(result.failures).toEqual([
+      { file: "screenshots/full-page.png", scrollY: null, message: refusal.message },
+    ]);
+    expect(result.files).toHaveLength(3);
   });
 });
 
