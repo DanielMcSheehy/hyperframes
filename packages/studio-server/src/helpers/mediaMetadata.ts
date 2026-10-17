@@ -74,7 +74,6 @@ export interface MediaMetadata {
   color: MediaColorMetadata;
   /** Video audio stream, when probed. Absent means the drop path stays muted. */
   hasAudio?: boolean;
-  /** `playableAudioTrack` of a probed video; absent when no audio stream plays. */
   audioTrack?: number;
   probeError?: string;
 }
