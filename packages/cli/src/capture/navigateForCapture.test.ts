@@ -208,14 +208,28 @@ describe("gotoWhenSent", () => {
     [
       "names the other server's script it is still waiting on",
       "https://cdn.example/gsap.min.js",
+      "https://cdn.example/gsap.min.js",
       true,
     ],
     [
       "names a stalled script of its own without advising to move it",
       "http://127.0.0.1:1/app.js",
+      "http://127.0.0.1:1/app.js",
       false,
     ],
-  ])("%s", async (_name, script, advises) => {
+    [
+      "keeps a signed URL's secrets out of the message for another server's script",
+      "https://user:SECRET@cdn.example/gsap.min.js?sig=SECRET#SECRET",
+      "https://cdn.example/gsap.min.js?…",
+      true,
+    ],
+    [
+      "keeps a signed URL's secrets out of the message for a script of its own",
+      "http://127.0.0.1:1/app.js?token=SECRET",
+      "http://127.0.0.1:1/app.js?…",
+      false,
+    ],
+  ])("%s", async (_name, script, shown, advises) => {
     vi.useFakeTimers();
     const chrome = fakeChromePage();
     const opened = gotoWhenSent(chrome.page, "http://127.0.0.1:1/", 10_000);
@@ -223,7 +237,8 @@ describe("gotoWhenSent", () => {
       const message = String(error);
       return (
         isNavigationTimeoutError(error) &&
-        message.includes(`while the page was still loading ${script}.`) &&
+        message.includes(`while the page was still loading ${shown}.`) &&
+        !message.includes("SECRET") &&
         !message.includes("styles.css") &&
         message.includes("from another server") === advises
       );

@@ -135,14 +135,32 @@ export function unfinishedPageLoadRequests(cdp: CDPSession): () => string[] {
   return () => [...unfinished.values()];
 }
 
+function urlWithoutSecrets(raw: string): string {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return `${url.protocol}…`;
+    return `${url.origin}${url.pathname}${url.search ? "?…" : ""}`;
+  } catch {
+    return "(unreadable URL)";
+  }
+}
+
+function originOf(raw: string): string | null {
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+
 function pageLoadTimeoutMessage(timeoutMs: number, pageUrl: string, waitingOn: string[]): string {
   const exceeded = `Navigation timeout of ${timeoutMs} ms exceeded`;
   if (waitingOn.length === 0) return exceeded;
-  const named = waitingOn.slice(0, NAMED_BLOCKING_REQUESTS).join(", ");
+  const named = waitingOn.slice(0, NAMED_BLOCKING_REQUESTS).map(urlWithoutSecrets).join(", ");
   const unnamed = waitingOn.length - NAMED_BLOCKING_REQUESTS;
   const more = unnamed > 0 ? ` and ${unnamed} more` : "";
   const pageOrigin = new URL(pageUrl).origin;
-  const fromAnotherServer = waitingOn.some((request) => !request.startsWith(`${pageOrigin}/`));
+  const fromAnotherServer = waitingOn.some((request) => originOf(request) !== pageOrigin);
   const advice = fromAnotherServer
     ? " A <script> or stylesheet from another server holds the page until it arrives; serve it from the project instead."
     : "";
