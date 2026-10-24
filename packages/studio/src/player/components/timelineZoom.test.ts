@@ -12,7 +12,6 @@ import {
   timelineZoomPercentToSlider,
   timelineSliderToZoomPercent,
   zoomToSelectedClips,
-  type SelectedClipsZoom,
 } from "./timelineZoom";
 
 const FIT_PPS = 12;
@@ -158,56 +157,47 @@ describe("computePinnedZoomPercent", () => {
 
 const VIEW = { viewportWidth: 1080, contentOrigin: 32, fitPixelsPerSecond: 10 };
 
-function place(zoom: SelectedClipsZoom, time: number): number {
-  const pps = getTimelinePixelsPerSecond(VIEW.fitPixelsPerSecond, "manual", zoom.zoomPercent);
-  return VIEW.contentOrigin + time * pps - zoom.scrollLeft;
-}
-
 describe("zoomToSelectedClips", () => {
-  const margin = TIMELINE_RANGE_MARGIN_PX;
-  const left = VIEW.contentOrigin + margin;
-  const right = VIEW.viewportWidth - margin;
+  const usable = VIEW.viewportWidth - VIEW.contentOrigin - TIMELINE_RANGE_MARGIN_PX * 2;
 
-  it("fits one clip between the margins", () => {
-    const zoom = zoomToSelectedClips({ ...VIEW, clips: [{ start: 10, end: 20 }] });
-    expect(zoom).not.toBeNull();
-    expect(place(zoom!, 10)).toBeCloseTo(left);
-    expect(place(zoom!, 20)).toBeCloseTo(right);
-  });
-
-  it("fits several clips from the earliest start to the latest end", () => {
-    const zoom = zoomToSelectedClips({
-      ...VIEW,
-      clips: [
-        { start: 28, end: 30 },
-        { start: 10, end: 12 },
-        { start: 0, end: 0 },
-      ],
+  it("returns the span and the percent that fits it between the margins", () => {
+    expect(zoomToSelectedClips({ ...VIEW, clips: [{ start: 10, end: 20 }] })).toEqual({
+      start: 10,
+      end: 20,
+      zoomPercent: (usable / 10 / VIEW.fitPixelsPerSecond) * 100,
     });
-    expect(zoom).toMatchObject({ start: 10, end: 30 });
-    expect(place(zoom!, 10)).toBeCloseTo(left);
-    expect(place(zoom!, 30)).toBeCloseTo(right);
   });
 
-  it("keeps a clip at the start on screen without scrolling past zero", () => {
-    const zoom = zoomToSelectedClips({ ...VIEW, clips: [{ start: 0, end: 10 }] })!;
-    expect(zoom.scrollLeft).toBe(0);
-    expect(place(zoom, 0)).toBe(VIEW.contentOrigin);
-    expect(place(zoom, 10)).toBeLessThanOrEqual(VIEW.viewportWidth);
+  it("unions several clips and skips a zero-length entry", () => {
+    expect(
+      zoomToSelectedClips({
+        ...VIEW,
+        clips: [
+          { start: 28, end: 30 },
+          { start: 10, end: 12 },
+          { start: 0, end: 0 },
+        ],
+      }),
+    ).toEqual({
+      start: 10,
+      end: 30,
+      zoomPercent: (usable / 20 / VIEW.fitPixelsPerSecond) * 100,
+    });
   });
 
-  it("keeps a clip at the end of the fit span inside the viewport", () => {
-    const fitTrack = VIEW.viewportWidth - VIEW.contentOrigin - 2;
-    const end = fitTrack / VIEW.fitPixelsPerSecond;
-    const zoom = zoomToSelectedClips({ ...VIEW, clips: [{ start: end - 10, end }] })!;
-    expect(zoom.scrollLeft).toBeGreaterThan(0);
-    expect(place(zoom, zoom.start)).toBeGreaterThanOrEqual(0);
-    expect(place(zoom, end)).toBeLessThanOrEqual(VIEW.viewportWidth);
-  });
-
-  it("returns null when nothing selectable is passed", () => {
+  it("returns null when nothing selectable is passed or the timeline is collapsed", () => {
     expect(zoomToSelectedClips({ ...VIEW, clips: [] })).toBeNull();
     expect(zoomToSelectedClips({ ...VIEW, clips: [{ start: 4, end: 4 }] })).toBeNull();
+    expect(
+      zoomToSelectedClips({
+        ...VIEW,
+        viewportWidth: VIEW.contentOrigin,
+        clips: [{ start: 0, end: 1 }],
+      }),
+    ).toBeNull();
+    expect(
+      zoomToSelectedClips({ ...VIEW, viewportWidth: 0, clips: [{ start: 0, end: 1 }] }),
+    ).toBeNull();
   });
 });
 

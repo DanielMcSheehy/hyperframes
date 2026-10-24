@@ -131,10 +131,24 @@ export interface SelectedClipsZoom {
   start: number;
   end: number;
   zoomPercent: number;
-  scrollLeft: number;
 }
 
-const FIT_TRACK_FUDGE_PX = 2;
+/** Union of clips with a positive duration. Zero-length entries are not a range. */
+export function positiveClipSpan(
+  clips: readonly ClipTimeSpan[],
+): { start: number; end: number } | null {
+  let start = Number.POSITIVE_INFINITY;
+  let end = Number.NEGATIVE_INFINITY;
+  for (const clip of clips) {
+    if (!Number.isFinite(clip.start) || !Number.isFinite(clip.end) || !(clip.end > clip.start)) {
+      continue;
+    }
+    if (clip.start < start) start = clip.start;
+    if (clip.end > end) end = clip.end;
+  }
+  if (!Number.isFinite(start) || !(end > start)) return null;
+  return { start, end };
+}
 
 export function zoomToSelectedClips(input: {
   clips: readonly ClipTimeSpan[];
@@ -144,28 +158,19 @@ export function zoomToSelectedClips(input: {
   marginPx?: number;
 }): SelectedClipsZoom | null {
   const margin = input.marginPx ?? TIMELINE_RANGE_MARGIN_PX;
-  let start = Number.POSITIVE_INFINITY;
-  let end = Number.NEGATIVE_INFINITY;
-  for (const clip of input.clips) {
-    if (!Number.isFinite(clip.start) || !Number.isFinite(clip.end) || !(clip.end > clip.start)) {
-      continue;
-    }
-    if (clip.start < start) start = clip.start;
-    if (clip.end > end) end = clip.end;
-  }
+  const span = positiveClipSpan(input.clips);
   const fitPps = input.fitPixelsPerSecond;
   const viewport = input.viewportWidth;
   const origin = input.contentOrigin;
-  if (!Number.isFinite(start) || !(end > start)) return null;
+  if (!span) return null;
   if (!Number.isFinite(fitPps) || !(fitPps > 0)) return null;
+  // A collapsed timeline is no wider than its headers, so there is no track to fit.
   if (!Number.isFinite(viewport) || !Number.isFinite(origin) || !(viewport > origin)) return null;
 
   const usable = Math.max(1, viewport - origin - margin * 2);
-  const zoomPercent = clampTimelineZoomPercent((usable / (end - start) / fitPps) * 100, fitPps);
-  const pps = getTimelinePixelsPerSecond(fitPps, "manual", zoomPercent);
-  const fitTrack = viewport - origin - FIT_TRACK_FUDGE_PX;
-  const contentWidth = origin + fitTrack * Math.max(1, pps / fitPps);
-  const maxLeft = Math.max(0, contentWidth - viewport);
-  const scrollLeft = Math.max(0, Math.min(maxLeft, start * pps - margin));
-  return { start, end, zoomPercent, scrollLeft };
+  const zoomPercent = clampTimelineZoomPercent(
+    (usable / (span.end - span.start) / fitPps) * 100,
+    fitPps,
+  );
+  return { start: span.start, end: span.end, zoomPercent };
 }
