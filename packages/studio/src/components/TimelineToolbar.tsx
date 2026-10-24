@@ -20,6 +20,7 @@ import {
 } from "../player/components/timelineZoom";
 import { useTimelineZoom } from "../player/components/useTimelineZoom";
 import {
+  canZoomToSelectedClips,
   useShownTimelineZoomPercent,
   zoomTimelineStep,
   zoomTimelineToSelectedClips,
@@ -180,8 +181,12 @@ export const TimelineToolbar = memo(function TimelineToolbar({
   // Subscribed, so the split button follows the selection, not only playhead ticks.
   const selectedElementId = usePlayerStore((s) => s.selectedElementId);
   const selectedElementIds = usePlayerStore((s) => s.selectedElementIds);
-  const hasClipSelection = selectedElementId !== null || selectedElementIds.size > 0;
   const elements = usePlayerStore((s) => s.elements);
+  const canZoomSelection = canZoomToSelectedClips({
+    elements,
+    selectedElementId,
+    selectedElementIds,
+  });
   const timelineFitPps = usePlayerStore((s) => s.timelineFitPps);
   const { zoomMode, setZoomMode, setManualZoomPercent } = useTimelineZoom();
   const displayedTimelineZoomPercent = useShownTimelineZoomPercent();
@@ -496,19 +501,19 @@ export const TimelineToolbar = memo(function TimelineToolbar({
           </Tooltip>
           <Tooltip
             label={
-              hasClipSelection
+              canZoomSelection
                 ? `Zoom to selected clips (${ZOOM_SELECTION_SHORTCUT_HINT})`
                 : "Select a clip to zoom the timeline"
             }
           >
             <button
               type="button"
-              disabled={!hasClipSelection}
+              disabled={!canZoomSelection}
               aria-label={
-                hasClipSelection ? "Zoom to selected clips" : "Select a clip to zoom the timeline"
+                canZoomSelection ? "Zoom to selected clips" : "Select a clip to zoom the timeline"
               }
               onClick={() => zoomTimelineToSelectedClips()}
-              className={hasClipSelection ? flatIdle : flatDisabled}
+              className={canZoomSelection ? flatIdle : flatDisabled}
             >
               <FrameCorners size={16} aria-hidden="true" />
             </button>

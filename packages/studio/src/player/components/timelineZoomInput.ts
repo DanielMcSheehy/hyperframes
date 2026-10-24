@@ -10,7 +10,9 @@ import {
   getTimelinePixelsPerSecond,
   getTimelineZoomPercent,
   TIMELINE_RANGE_MARGIN_PX,
+  positiveClipSpan,
   zoomToSelectedClips,
+  type ClipTimeSpan,
 } from "./timelineZoom";
 
 /** Where a zoom holds its place: `time` stays `x` px from the viewport's left edge. */
@@ -468,19 +470,36 @@ export function zoomTimelineStep(direction: "in" | "out"): void {
   void easeToRange(start, start + width / nextPps, {}, true);
 }
 
-export function zoomTimelineToSelectedClips(): boolean {
-  const view = viewport;
-  const state = usePlayerStore.getState();
-  if (!view || !(state.timelineFitPps > 0)) return false;
+function selectedClipSpans(state: {
+  elements: readonly { key?: string | null; id: string; start: number; duration: number }[];
+  selectedElementId: string | null;
+  selectedElementIds: ReadonlySet<string>;
+}): ClipTimeSpan[] {
   const keys = new Set(state.selectedElementIds);
   if (state.selectedElementId) keys.add(state.selectedElementId);
-  const clips: { start: number; end: number }[] = [];
+  const clips: ClipTimeSpan[] = [];
   for (const el of state.elements) {
     if (!keys.has(el.key ?? el.id)) continue;
     clips.push({ start: el.start, end: el.start + el.duration });
   }
+  return clips;
+}
+
+/** Whether the selection matches a timeline clip the zoom can land on. */
+export function canZoomToSelectedClips(state: {
+  elements: readonly { key?: string | null; id: string; start: number; duration: number }[];
+  selectedElementId: string | null;
+  selectedElementIds: ReadonlySet<string>;
+}): boolean {
+  return positiveClipSpan(selectedClipSpans(state)) !== null;
+}
+
+export function zoomTimelineToSelectedClips(): boolean {
+  const view = viewport;
+  const state = usePlayerStore.getState();
+  if (!view || !(state.timelineFitPps > 0) || !canZoomToSelectedClips(state)) return false;
   const zoom = zoomToSelectedClips({
-    clips,
+    clips: selectedClipSpans(state),
     viewportWidth: view.scroll.clientWidth,
     contentOrigin: view.contentOrigin,
     fitPixelsPerSecond: state.timelineFitPps,

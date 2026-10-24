@@ -518,6 +518,24 @@ describe("dispatchPlainKey — G opens Audio Gain", () => {
     const shifted = new KeyboardEvent("keydown", { key: "z", shiftKey: true, bubbles: true });
     dispatchPlainKey(shifted, "z", callbacks());
     expect(shifted.defaultPrevented).toBe(false);
+
+    usePlayerStore.setState({
+      elements: [bgmElement],
+      selectedElementId: "scene.html#child",
+      selectedElementIds: new Set(["scene.html#child"]),
+    });
+    const child = press("z");
+    dispatchPlainKey(child, "z", callbacks());
+    expect(child.defaultPrevented).toBe(false);
+
+    usePlayerStore.setState({
+      elements: [{ ...bgmElement, duration: 0 }],
+      selectedElementId: "bgm",
+      selectedElementIds: new Set(["bgm"]),
+    });
+    const zero = press("z");
+    dispatchPlainKey(zero, "z", callbacks());
+    expect(zero.defaultPrevented).toBe(false);
   });
 
   it("leaves G to the grid toggle when nothing selected has sound", () => {
