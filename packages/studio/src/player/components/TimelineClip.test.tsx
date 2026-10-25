@@ -30,12 +30,14 @@ function renderClip({
   isSelected = false,
   hasCustomContent = true,
   theme = defaultTimelineTheme,
+  isComposition = false,
 }: {
   element: TimelineElement;
   pps?: number;
   isSelected?: boolean;
   hasCustomContent?: boolean;
   theme?: TimelineTheme;
+  isComposition?: boolean;
 }) {
   const host = document.createElement("div");
   document.body.append(host);
@@ -53,7 +55,7 @@ function renderClip({
         hasCustomContent={hasCustomContent}
         capabilities={capabilities}
         theme={theme}
-        isComposition={false}
+        isComposition={isComposition}
         onHoverStart={vi.fn()}
         onHoverEnd={vi.fn()}
         onClick={onClick}
@@ -333,48 +335,74 @@ describe("TimelineClip", () => {
       const short = renderClip({
         element: { id: "short", label: shortName, tag: "div", start: 0, duration: 2, track: 0 },
       });
+      const longClip = long.host.querySelector("button")!;
+      const shortClip = short.host.querySelector("button")!;
+      expect(longClip.parentElement).toBe(long.host);
       expect(long.host.querySelector(".timeline-clip__name")?.textContent).toBe(longName);
-      expect(short.host.querySelector(".timeline-clip__name")?.textContent).toBe(shortName);
-      expect(long.host.querySelector(".timeline-clip")?.getAttribute("title")).toBeNull();
-      expect(short.host.querySelector(".timeline-clip")?.getAttribute("title")).toContain(
-        shortName,
-      );
+      expect(longClip.getAttribute("title")).toBe(`${longName} • 0.0s to 2.0s`);
+      expect(shortClip.getAttribute("title")).toContain(shortName);
 
-      // The shared tooltip arms on pointerenter and opens after the pointer rests.
-      const hover = async (host: HTMLElement) => {
-        const trigger = host.querySelector("[data-base-ui-tooltip-trigger]");
-        const button = host.querySelector("button");
-        act(() => {
-          trigger?.dispatchEvent(
-            new PointerEvent("pointerenter", { bubbles: true, pointerType: "mouse" }),
-          );
-          button?.dispatchEvent(
-            new PointerEvent("pointerenter", { bubbles: true, pointerType: "mouse" }),
-          );
-          trigger?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
-          button?.dispatchEvent(
-            new MouseEvent("mousemove", { bubbles: true, movementX: 6, movementY: 4 }),
-          );
-          trigger?.dispatchEvent(
-            new MouseEvent("mousemove", { bubbles: true, movementX: 6, movementY: 4 }),
-          );
-        });
-        await act(async () => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        });
-      };
-      await hover(long.host);
-      expect(document.querySelector("[role='tooltip']")?.textContent).toBe(longName);
-      await hover(short.host);
-      const tips = [...document.querySelectorAll("[role='tooltip']")].map(
-        (node) => node.textContent,
+      await act(async () => longClip.focus());
+      await vi.waitFor(() =>
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+          `${longName} • 0.0s to 2.0s`,
+        ),
       );
-      expect(tips).not.toContain(shortName);
+      expect(longClip.getAttribute("title")).toBeNull();
+
+      await act(async () => shortClip.focus());
+      await vi.waitFor(() => expect(document.querySelector('[role="tooltip"]')).toBeNull());
+      expect(shortClip.getAttribute("title")).toContain(shortName);
 
       act(() => {
         long.root.unmount();
         short.root.unmount();
       });
+    } finally {
+      for (const [key, descriptor] of prior) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, key);
+      }
+    }
+  });
+
+  it("keeps the composition open hint in the tooltip when the name is cut off", async () => {
+    const prior = ["scrollWidth", "clientWidth"].map(
+      (key) => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const,
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains("timeline-clip__name") ? 240 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains("timeline-clip__name") ? 80 : 0;
+      },
+    });
+    try {
+      const view = renderClip({
+        element: {
+          id: "scene",
+          label: "Opening title that does not fit",
+          tag: "div",
+          start: 1,
+          duration: 3,
+          track: 0,
+          compositionSrc: "compositions/title.html",
+        },
+        isComposition: true,
+      });
+      const clip = view.host.querySelector("button")!;
+      await act(async () => clip.focus());
+      await vi.waitFor(() =>
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
+          "compositions/title.html • Double-click to open",
+        ),
+      );
+      act(() => view.root.unmount());
     } finally {
       for (const [key, descriptor] of prior) {
         if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);

@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { TimelineElement } from "../store/playerStore";
 import {
   CLIP_TRIM_HIT_PX,
@@ -97,22 +97,17 @@ export const TimelineClip = memo(function TimelineClip({
   const startLabel = el.start.toFixed(1);
   const endLabel = (el.start + el.duration).toFixed(1);
   const clipRef = useRef<HTMLButtonElement>(null);
-  const [labelTruncated, setLabelTruncated] = useState(false);
-  useLayoutEffect(() => {
-    const node = clipRef.current?.querySelector<HTMLElement>(
+  const nameTooltipId = useId();
+  const [showFullName, setShowFullName] = useState(false);
+  const nameTitle = isComposition
+    ? `${el.compositionSrc} • Double-click to open`
+    : `${displayLabel} • ${startLabel}s to ${endLabel}s`;
+  const revealFullName = (target: HTMLElement) => {
+    const node = target.querySelector<HTMLElement>(
       isAudioClip ? ".timeline-clip__label" : ".timeline-clip__name",
     );
-    if (!node) {
-      setLabelTruncated(false);
-      return;
-    }
-    const update = () => setLabelTruncated(node.scrollWidth > node.clientWidth);
-    update();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [displayLabel, showLabel, widthPx, isAudioClip]);
+    setShowFullName(Boolean(node && node.scrollWidth > node.clientWidth));
+  };
   const themeVariables = {
     "--clip-bg": theme.clipBackground,
     "--clip-bg-active": theme.clipBackgroundActive,
@@ -186,15 +181,18 @@ export const TimelineClip = memo(function TimelineClip({
       }
       className={clipClassName}
       style={style}
-      title={
-        labelTruncated
-          ? undefined
-          : isComposition
-            ? `${el.compositionSrc} • Double-click to open`
-            : `${displayLabel} • ${startLabel}s to ${endLabel}s`
-      }
-      onPointerEnter={onHoverStart}
-      onPointerLeave={onHoverEnd}
+      title={showFullName ? undefined : nameTitle}
+      aria-describedby={showFullName ? nameTooltipId : undefined}
+      onPointerEnter={(event) => {
+        revealFullName(event.currentTarget);
+        onHoverStart();
+      }}
+      onPointerLeave={() => {
+        setShowFullName(false);
+        onHoverEnd();
+      }}
+      onFocus={(event) => revealFullName(event.currentTarget)}
+      onBlur={() => setShowFullName(false)}
       onPointerDown={onPointerDown}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -294,14 +292,14 @@ export const TimelineClip = memo(function TimelineClip({
   );
   if (isAudioClip || el.hasAudio) {
     return (
-      <ClipPeakTooltip overflowLabel={labelTruncated ? displayLabel : undefined}>
-        {clip}
-      </ClipPeakTooltip>
+      <ClipPeakTooltip overflowLabel={showFullName ? nameTitle : undefined}>{clip}</ClipPeakTooltip>
     );
   }
+  // The button stays a direct lane child. A wrapper span would split it from the keyframe diamonds beside it.
   return (
-    <Tooltip label={displayLabel} disabled={!labelTruncated}>
+    <>
       {clip}
-    </Tooltip>
+      <Tooltip label={nameTitle} anchorRef={clipRef} open={showFullName} id={nameTooltipId} />
+    </>
   );
 });
