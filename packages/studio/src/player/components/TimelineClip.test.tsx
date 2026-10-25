@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TimelineElement } from "../store/playerStore";
 import { TimelineClip } from "./TimelineClip";
+import { TOOLTIP_HOVER_DELAY_MS } from "../../components/ui/Tooltip";
 import { ClipFadesContext } from "./TimelineClipFades";
 import type { TimelineEditCapabilities } from "./timelineEditing";
 import { defaultTimelineTheme, type TimelineTheme } from "./timelineTheme";
@@ -366,7 +367,8 @@ describe("TimelineClip", () => {
     }
   });
 
-  it("keeps the composition open hint in the tooltip when the name is cut off", async () => {
+  it("shows the composition name, and keeps the double-click hint, when the name is cut off", async () => {
+    const name = "Opening title that does not fit";
     const prior = ["scrollWidth", "clientWidth"].map(
       (key) => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const,
     );
@@ -386,7 +388,7 @@ describe("TimelineClip", () => {
       const view = renderClip({
         element: {
           id: "scene",
-          label: "Opening title that does not fit",
+          label: name,
           tag: "div",
           start: 1,
           duration: 3,
@@ -399,9 +401,78 @@ describe("TimelineClip", () => {
       await act(async () => clip.focus());
       await vi.waitFor(() =>
         expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(
-          "compositions/title.html • Double-click to open",
+          `${name} • Double-click to open`,
         ),
       );
+      act(() => view.root.unmount());
+    } finally {
+      for (const [key, descriptor] of prior) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, key);
+      }
+    }
+  });
+
+  it("waits the shared tooltip delay on hover, and closes the tooltip when the clip is pressed", async () => {
+    const prior = ["scrollWidth", "clientWidth"].map(
+      (key) => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const,
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains("timeline-clip__name") ? 240 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains("timeline-clip__name") ? 80 : 0;
+      },
+    });
+    try {
+      const view = renderClip({
+        element: {
+          id: "long",
+          label: "International Space Station flyover",
+          tag: "div",
+          start: 0,
+          duration: 2,
+          track: 0,
+        },
+      });
+      const clip = view.host.querySelector("button")!;
+      const tooltip = () => document.querySelector('[role="tooltip"]');
+      const wait = (ms: number) => {
+        const { promise, resolve } = Promise.withResolvers<void>();
+        setTimeout(resolve, ms);
+        return act(async () => {
+          await promise;
+        });
+      };
+      await act(async () => {
+        clip.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+      });
+      expect(tooltip()).toBeNull();
+      await act(async () => {
+        clip.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }));
+      });
+      await wait(TOOLTIP_HOVER_DELAY_MS + 50);
+      expect(tooltip()).toBeNull();
+
+      await act(async () => {
+        clip.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+      });
+      expect(tooltip()).toBeNull();
+      await vi.waitFor(
+        () =>
+          expect(tooltip()?.textContent).toBe("International Space Station flyover • 0.0s to 2.0s"),
+        { timeout: 1000 },
+      );
+
+      await act(async () => {
+        clip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      });
+      expect(tooltip()).toBeNull();
       act(() => view.root.unmount());
     } finally {
       for (const [key, descriptor] of prior) {

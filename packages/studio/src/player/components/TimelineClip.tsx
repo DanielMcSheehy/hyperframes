@@ -1,4 +1,12 @@
-import { memo, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { TimelineElement } from "../store/playerStore";
 import {
   CLIP_TRIM_HIT_PX,
@@ -16,7 +24,7 @@ import { ClipBadges } from "./ClipBadges";
 import { linkLabelColor } from "./linkLabelColor";
 import { OutOfSyncBadge } from "./OutOfSyncBadge";
 import { clipSpeedSuffix } from "./clipToolAttrs";
-import { Tooltip } from "../../components/ui/Tooltip";
+import { TOOLTIP_HOVER_DELAY_MS, Tooltip } from "../../components/ui/Tooltip";
 import { ClipPeakTooltip } from "./ClipPeakTooltip";
 import { timeLayerPercent } from "./TimelineTimeLayer";
 
@@ -100,13 +108,32 @@ export const TimelineClip = memo(function TimelineClip({
   const nameTooltipId = useId();
   const [showFullName, setShowFullName] = useState(false);
   const nameTitle = isComposition
-    ? `${el.compositionSrc} • Double-click to open`
+    ? `${displayLabel} • Double-click to open`
     : `${displayLabel} • ${startLabel}s to ${endLabel}s`;
-  const revealFullName = (target: HTMLElement) => {
-    const node = target.querySelector<HTMLElement>(
-      isAudioClip ? ".timeline-clip__label" : ".timeline-clip__name",
-    );
-    setShowFullName(Boolean(node && node.scrollWidth > node.clientWidth));
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearRevealTimer = () => {
+    if (revealTimer.current === null) return;
+    clearTimeout(revealTimer.current);
+    revealTimer.current = null;
+  };
+  useEffect(() => clearRevealTimer, []);
+  const hideFullName = () => {
+    clearRevealTimer();
+    setShowFullName(false);
+  };
+  const revealFullName = (target: HTMLElement, delayMs = 0) => {
+    clearRevealTimer();
+    const measure = () => {
+      const node = target.querySelector<HTMLElement>(
+        isAudioClip ? ".timeline-clip__label" : ".timeline-clip__name",
+      );
+      setShowFullName(Boolean(node && node.scrollWidth > node.clientWidth));
+    };
+    if (delayMs <= 0) {
+      measure();
+      return;
+    }
+    revealTimer.current = setTimeout(measure, delayMs);
   };
   const themeVariables = {
     "--clip-bg": theme.clipBackground,
@@ -184,16 +211,20 @@ export const TimelineClip = memo(function TimelineClip({
       title={showFullName ? undefined : nameTitle}
       aria-describedby={showFullName ? nameTooltipId : undefined}
       onPointerEnter={(event) => {
-        revealFullName(event.currentTarget);
+        // Audio already waits inside ClipPeakTooltip. Picture clips own their open state.
+        revealFullName(event.currentTarget, isAudioClip ? 0 : TOOLTIP_HOVER_DELAY_MS);
         onHoverStart();
       }}
       onPointerLeave={() => {
-        setShowFullName(false);
+        hideFullName();
         onHoverEnd();
       }}
       onFocus={(event) => revealFullName(event.currentTarget)}
-      onBlur={() => setShowFullName(false)}
-      onPointerDown={onPointerDown}
+      onBlur={hideFullName}
+      onPointerDown={(event) => {
+        hideFullName();
+        onPointerDown?.(event);
+      }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

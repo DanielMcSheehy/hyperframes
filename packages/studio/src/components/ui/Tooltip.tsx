@@ -33,6 +33,9 @@ interface TooltipProps {
   id?: string;
 }
 
+/** Hover wait shared by wrapped triggers and anchored clip names. */
+export const TOOLTIP_HOVER_DELAY_MS = 400;
+
 /** Matches the old bubble's gap from its trigger, and its viewport margin. */
 const SIDE_OFFSET = 6;
 const VIEWPORT_MARGIN = 8;
@@ -40,7 +43,7 @@ const VIEWPORT_MARGIN = 8;
 export function Tooltip({
   label,
   children,
-  delay = 400,
+  delay = TOOLTIP_HOVER_DELAY_MS,
   side = "top",
   disabled = false,
   lines,
@@ -93,7 +96,8 @@ export function Tooltip({
       <BaseTooltip.Trigger delay={delay} render={<span ref={boxRef} className="contents" />}>
         {children
           ? cloneElement(children, {
-              "aria-describedby": open && !disabled ? tooltipId : children.props["aria-describedby"],
+              "aria-describedby":
+                open && !disabled ? tooltipId : children.props["aria-describedby"],
             })
           : null}
       </BaseTooltip.Trigger>
