@@ -458,7 +458,8 @@ export function zoomTimelineStep(direction: "in" | "out"): void {
     fitPps,
   );
   const view = viewport;
-  if (!view || !(fitPps > 0)) {
+  // A collapsed timeline has no track to fit a range into, so the step still changes the percent.
+  if (!view || !(fitPps > 0) || !(view.scroll.clientWidth > view.contentOrigin)) {
     requestTimelineZoom(nextPercent);
     return;
   }
@@ -497,14 +498,10 @@ export function canZoomToSelectedClips(state: {
 export function zoomTimelineToSelectedClips(): boolean {
   const view = viewport;
   const state = usePlayerStore.getState();
-  if (!view || !(state.timelineFitPps > 0) || !canZoomToSelectedClips(state)) return false;
-  const zoom = zoomToSelectedClips({
-    clips: selectedClipSpans(state),
-    viewportWidth: view.scroll.clientWidth,
-    contentOrigin: view.contentOrigin,
-    fitPixelsPerSecond: state.timelineFitPps,
-  });
-  if (!zoom) return false;
-  void zoomTimelineToRange(zoom.start, zoom.end);
+  if (!view || !(state.timelineFitPps > 0) || !(view.scroll.clientWidth > view.contentOrigin))
+    return false;
+  const span = positiveClipSpan(selectedClipSpans(state));
+  if (!span) return false;
+  void zoomTimelineToRange(span.start, span.end);
   return true;
 }

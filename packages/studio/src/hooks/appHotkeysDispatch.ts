@@ -9,10 +9,7 @@ import { shouldIgnoreHistoryShortcut } from "../utils/studioHelpers";
 import { canSplitElement } from "../utils/timelineElementSplit";
 import { trackStudioEvent } from "../utils/studioTelemetry";
 import { STUDIO_PLAIN_KEYS } from "../player/components/studioShortcuts";
-import {
-  canZoomToSelectedClips,
-  zoomTimelineToSelectedClips,
-} from "../player/components/timelineZoomInput";
+import { zoomTimelineToSelectedClips } from "../player/components/timelineZoomInput";
 import { openAudioGainDialog } from "../player/components/audioGainDialogStore";
 import type { LinkShortcutCallbacks } from "./linkShortcuts";
 
@@ -161,9 +158,8 @@ export function dispatchModifierKey(
 export function dispatchPlainKey(event: KeyboardEvent, key: string, cb: HotkeyCallbacks): void {
   if (ownsPlainKeys(event.target)) return;
   if (key === STUDIO_PLAIN_KEYS.zoomSelection && !event.shiftKey && !event.altKey) {
-    if (!canZoomToSelectedClips(usePlayerStore.getState())) return;
+    if (!zoomTimelineToSelectedClips()) return;
     event.preventDefault();
-    zoomTimelineToSelectedClips();
     return;
   }
 

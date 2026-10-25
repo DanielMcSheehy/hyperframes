@@ -470,4 +470,17 @@ describe("zoomTimelineStep", () => {
     // The range's middle, 56 + 1000 / 2, is the playhead.
     expect(laidOutX(60)).toBeCloseTo(556);
   });
+
+  it("still doubles the scale when the timeline is no wider than its headers", () => {
+    const scroll = document.createElement("div");
+    Object.defineProperties(scroll, {
+      clientWidth: { value: 32 },
+      scrollWidth: { value: 32 },
+      scrollLeft: { value: 0, writable: true },
+    });
+    unregisterViewport = registerTimelineZoomViewport({ scroll, contentOrigin: 32, publishScroll });
+    zoomTimelineStep("in");
+    vi.advanceTimersByTime(150);
+    expect(usePlayerStore.getState().timelinePps).toBeCloseTo(20);
+  });
 });
